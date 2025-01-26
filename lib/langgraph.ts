@@ -3,21 +3,33 @@ import { ToolNode } from "@langchain/langgraph/prebuilt";
 import wxflows from "@wxflows/sdk/langchain"; // @wxflows/sdk@beta
 import {
     END,
+    MemorySaver,
     MessagesAnnotation,
     START,
     StateGraph,
 } from "@langchain/langgraph"
-import { SystemMessage } from "@langchain/core/messages";
+import { AIMessage, BaseMessage, SystemMessage, trimMessages } from "@langchain/core/messages";
 import { 
     ChatPromptTemplate,
     MessagesPlaceholder,
 } from "@langchain/core/prompts";
+import SYSTEM_MESSAGE from "@/constants/systemMessage";
 
 // Custom Tool Creation Example
 // // Customers at: https://introspection.apis.stepzen.com/customers
 // // // wxflows import curl https://introspection.apis.stepzen.com/customers
 // // Comments at: https://dummyjson.com/comments
 // // // wxflows import curl https://dummyjson.com/comments
+
+// Trim the messages to manage conversation history
+const trimmer = trimMessages({
+    maxTokens: 10,
+    strategy: "last",
+    tokenCounter: (msgs) => msgs.length,
+    includeSystem: true,
+    allowPartial: false,
+    startOn: "human",
+});
 
 // Connect to wxflows (IBM watsonx.ai)
 const toolClient = new wxflows({
@@ -71,6 +83,25 @@ const initializeModel = () => {
     return model;
 };
 
+// Determines whether to continue or not
+function shouldContinue(state: typeof MessagesAnnotation.State) {
+    const messages = state.messages;
+    const lastMessage = messages[messages.length - 1] as AIMessage;
+
+    // If the LLM makes a tool call, then route to the "tools" node
+    if (lastMessage.tool_calls?.length) {
+        return "tools";
+    };
+
+    // If the last message is a tool message, route back to agent
+    if (lastMessage.content && lastMessage._getType() === "tool") {
+        return "agent";
+    };
+
+    // Otherwise, stop (reply to the user)
+    return END;
+};
+
 // Takes all previous messages into context, and uses them to accurately answer the question
 const createWorkflow = () => {
     const model = initializeModel();
@@ -88,8 +119,49 @@ const createWorkflow = () => {
                     new SystemMessage(systemContent, {
                         cache_control: { type: "ephemeral" }, // Set a cache breakpoint (max number of breakpoints is 4 for anthropic)
                     }),
-                    new MessagesPlaceholder("messages"), // 
+                    new MessagesPlaceholder("messages"), // Where the messages will go
                 ]);
+
+                // Trim the messages to manage conversation history
+                const trimmedMessages = await trimmer.invoke(state.messages);
+
+                // Format the prompt with the current messages
+                const prompt = await promptTemplate.invoke({ messages: trimmedMessages });
+
+                // Get response from the model
+                const response = await model.invoke(prompt);
+
+                return { messages: [response] };
             },
-        );
+        )
+        .addEdge(START, "agent")
+        .addNode("tools", toolNode) // Use tools when needed to answer the question
+        .addConditionalEdges("agent", shouldContinue) // Agent decides whether to continue conversation or not
+        .addEdge("tools", "agent");
+
+    return stateGraph;
+};
+
+export async function submitQuestion(messages: BaseMessage[], chatId: string) {
+    // Create workflow with chatId and onToken callback
+    const workflow = createWorkflow();
+
+    // Create a checkpoint to save the state of the conversation
+    const checkpointer = new MemorySaver();
+    const app = workflow.compile({ checkpointer }); // adds breakpoints
+
+    console.log("🔒🔒🔒 Messages:", messages);
+
+    // Run the graph and begin the SSE stream
+    const stream = await app.streamEvents(
+        { messages, }, 
+        {
+            version: "v2",
+            configurable: { thread_id: chatId }, // Use the chatId as the thread_id (LLM will use this to keep track of the conversation)
+            streamMode: "messages",
+            runId: chatId,
+        },
+    );
+
+    return stream;
 };

@@ -1,6 +1,12 @@
 import { ChatAnthropic} from "@langchain/anthropic";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
 import wxflows from "@wxflows/sdk/langchain"; // @wxflows/sdk@beta
+import {
+    END,
+    MessagesAnnotation,
+    START,
+    StateGraph,
+} from "@langchain/langgraph"
 
 // Custom Tool Creation Example
 // // Customers at: https://introspection.apis.stepzen.com/customers
@@ -16,7 +22,7 @@ const toolClient = new wxflows({
 
 // Retrieve tools
 const tools = await toolClient.lcTools;
-const toolNode = new ToolNode(tools);
+const toolNode = new ToolNode(tools); // Ability to use tools
 
 // Prepare LLM model (claude anthropic)
 const initializeModel = () => {
@@ -63,5 +69,13 @@ const initializeModel = () => {
 const createWorkflow = () => {
     const model = initializeModel();
 
-    
+    // Graph of flow for LLM model (decisions, states, etc.)
+    const stateGraph = new StateGraph(MessagesAnnotation) // How messages are structured in chat template (graph)
+        .addNode(
+            "agent", 
+            async (state) => {
+                // Create the system message content
+                const systemContent = SYSTEM_MESSAGE;
+            },
+        );
 };

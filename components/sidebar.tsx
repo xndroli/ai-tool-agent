@@ -4,19 +4,31 @@ import { useRouter } from "next/navigation";
 import { use } from "react";
 import { Button } from "./ui/button";
 import { PlusIcon } from "@radix-ui/react-icons";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
+import ChatRow from "./chatRow";
 
 function Sidebar() {
     const router = useRouter();
     const { closeMobileNav, isMobileNavOpen } = use(NavigationContext);
 
-    // const chats = useQuery(api.chats.listChats);
-    // const createChat = useMutation(api.chats.createChat);
-    // const deleteChat = useMutation(api.chats.deleteChat);
+    const chats = useQuery(api.chats.listChats); // Retrieve all chats
+    const createChat = useMutation(api.chats.createChat); // Create new chat
+    const deleteChat = useMutation(api.chats.deleteChat); // Delete chat
 
-    const handleNewChat = () => {
-        // TODO: Route to chat ID page
-        // router.push("/dashboard/chat");
+    const handleNewChat = async () => {
+        const chatId = await createChat({ title: "New Chat" });
+        router.push(`/dashboard/chats/${chatId}`);
         closeMobileNav();
+    };
+
+    const handleDeleteChat = async (id: Id<"chats">) => {
+        await deleteChat({ id });
+        // If the deleted chat is the current chat, redirect to the dashboard page
+        if (window.location.pathname.includes(id)) {
+            router.push("/dashboard");
+        };
     };
 
     return (
@@ -45,9 +57,9 @@ function Sidebar() {
                 </div>
 
                 <div className="flex-1 overflow-y-auto space-y-2.5 p-4 scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent">
-                    {/* {chats?.map((chat) => (
+                    {chats?.map((chat) => (
                         <ChatRow key={chat._id} chat={chat} onDelete={handleDeleteChat} />
-                    ))} */}
+                    ))}
                 </div>
             </div>
         </>

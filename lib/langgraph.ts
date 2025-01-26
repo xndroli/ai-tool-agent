@@ -7,6 +7,11 @@ import {
     START,
     StateGraph,
 } from "@langchain/langgraph"
+import { SystemMessage } from "@langchain/core/messages";
+import { 
+    ChatPromptTemplate,
+    MessagesPlaceholder,
+} from "@langchain/core/prompts";
 
 // Custom Tool Creation Example
 // // Customers at: https://introspection.apis.stepzen.com/customers
@@ -66,6 +71,7 @@ const initializeModel = () => {
     return model;
 };
 
+// Takes all previous messages into context, and uses them to accurately answer the question
 const createWorkflow = () => {
     const model = initializeModel();
 
@@ -76,6 +82,14 @@ const createWorkflow = () => {
             async (state) => {
                 // Create the system message content
                 const systemContent = SYSTEM_MESSAGE;
+
+                // Create the chat prompt template with system message and messages placeholder
+                const promptTemplate = ChatPromptTemplate.fromMessages([
+                    new SystemMessage(systemContent, {
+                        cache_control: { type: "ephemeral" }, // Set a cache breakpoint (max number of breakpoints is 4 for anthropic)
+                    }),
+                    new MessagesPlaceholder("messages"), // 
+                ]);
             },
         );
 };

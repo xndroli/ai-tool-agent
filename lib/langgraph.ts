@@ -1,8 +1,24 @@
 import { ChatAnthropic} from "@langchain/anthropic";
+import { ToolNode } from "@langchain/langgraph/prebuilt";
+import wxflows from "@wxflows/sdk/langchain"; // @wxflows/sdk@beta
 
+// Custom Tool Creation Example
+// // Customers at: https://introspection.apis.stepzen.com/customers
+// // // wxflows import curl https://introspection.apis.stepzen.com/customers
+// // Comments at: https://dummyjson.com/comments
+// // // wxflows import curl https://dummyjson.com/comments
 
+// Connect to wxflows (IBM watsonx.ai)
+const toolClient = new wxflows({
+    endpoint: process.env.WXFLOWS_ENDPOINT || "",
+    apikey: process.env.WXFLOWS_APIKEY, 
+});
 
-// LLM model (claude anthropic)
+// Retrieve tools
+const tools = await toolClient.lcTools;
+const toolNode = new ToolNode(tools);
+
+// Prepare LLM model (claude anthropic)
 const initializeModel = () => {
     const model = new ChatAnthropic({
         modelName: "claude-3-5-sonnet-20241022",
@@ -39,7 +55,13 @@ const initializeModel = () => {
                   // },
             },
         ],
-    }).bindTools(tools);
+    }).bindTools(tools); // Bind tools to LLM model
 
     return model;
+};
+
+const createWorkflow = () => {
+    const model = initializeModel();
+
+    
 };

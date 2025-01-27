@@ -62,6 +62,12 @@ const initializeModel = () => {
                 handleLLMEnd: async (output) => {
                     console.log("🤖 End LLM call", output);
                     const usage = output.llmOutput?.usage;
+
+                    // output.generations.map((generation) => {
+                    //     generation.map((g) =>{
+                    //         console.log("🤖 Generation:", JSON.stringify(g));
+                    //     });
+                    // });
                     if (usage) {
                       // console.log("📊 Token Usage:", {
                       //   input_tokens: usage.input_tokens,

@@ -196,7 +196,6 @@ export async function submitQuestion(messages: BaseMessage[], chatId: string) {
     const checkpointer = new MemorySaver();
     const app = workflow.compile({ checkpointer }); // adds breakpoints
 
-
     // Run the graph and begin the SSE stream
     const stream = await app.streamEvents(
         { messages: cachedMessages }, 

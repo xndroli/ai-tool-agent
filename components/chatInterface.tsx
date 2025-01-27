@@ -201,15 +201,14 @@ function ChatInterface({ chatId, initialMessages }: ChatInterfaceProps) {
                             } as Doc<"messages">;
 
                             // Save the complete message to the database
-                            setMessages((prevMessages) => [...prevMessages, assistantMessage]);
-
                             const convex = getConvexClient();
                             await convex.mutation(api.messages.store, {
                                 chatId,
                                 content: completeResponse,
                                 role: "assistant",
                             });
-
+                            
+                            setMessages((prevMessages) => [...prevMessages, assistantMessage]);
                             setStreamedResponse("");
                             return;
                     }
